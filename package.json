@@ -9,5 +9,8 @@
   },
   "scripts": {
     "start": "node index.js"
+  },
+  "devDependencies": {
+    "webpack-cli": "^5.1.4"
   }
 }
