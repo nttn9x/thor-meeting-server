@@ -28,8 +28,6 @@ io.on("connection", (socket) => {
       `🚀 [Socket - room:joined] peerId: ${peerId} - roomId: ${roomId}`
     );
 
-    console.log({ peerId, participants: rooms[roomId] });
-
     io.to(roomId).emit("room:joined", {
       peerId,
       participants: rooms[roomId],
