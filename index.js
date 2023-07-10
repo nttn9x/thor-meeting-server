@@ -11,43 +11,44 @@ app.get("/test", (req, res) => {
   res.json({ status: 200 });
 });
 
-const rooms = {};
 // Connect Socket
 io.on("connection", (socket) => {
-  console.log(`[Socket - connection] We have a new id ${socket.id}`);
+  socket.on("room:join", (roomId) => {
+    const room = io.sockets.adapter.rooms.get(roomId);
 
-  const onJoining = (data) => {
-    const { peerId, roomId } = data;
+    const otherUsers = [];
+
+    if (room) {
+      room.forEach((id) => {
+        otherUsers.push(id);
+      });
+    }
+
+    console.log(`🚀 [Socket - room:join] id: ${socket.id} - roomId: ${roomId}`);
 
     socket.join(roomId);
+    socket.emit("room:all-other-users", otherUsers);
+  });
 
-    if (!rooms[roomId]) rooms[roomId] = [];
-    rooms[roomId].push({ peerId });
+  socket.on("peer connection request", ({ userIdToCall, sdp }) => {
+    io.to(userIdToCall).emit("peer:offer", { sdp, callerId: socket.id });
+  });
 
-    console.log(
-      `🚀 [Socket - room:joined] peerId: ${peerId} - roomId: ${roomId}`
-    );
-
-    io.to(roomId).emit("room:joined", {
-      peerId,
-      participants: rooms[roomId],
+  socket.on("peer:answer", ({ userToAnswerTo, sdp }) => {
+    io.to(userToAnswerTo).emit("peer:answer", {
+      sdp,
+      answererId: socket.id,
     });
+  });
 
-    socket.on("disconnect", () => {
-      console.log(`🚪 [Socket - disconnect] One friend is out ${peerId}`);
+  socket.on("peer:ice-candidate", ({ target, candidate }) => {
+    io.to(target).emit("peer:ice-candidate", { candidate, from: socket.id });
+  });
 
-      rooms[roomId] = rooms[roomId].filter((p) => p.peerId !== peerId);
-
-      io.to(roomId).emit("room:leave", peerId);
+  socket.on("disconnecting", () => {
+    console.log("socket.rooms", socket.rooms);
+    socket.rooms.forEach((room) => {
+      socket.to(room).emit("user:leave", socket.id);
     });
-  };
-
-  /**
-   * Listen to join event
-   */
-  socket.on("room:joining", onJoining);
-
-  socket.on("socket:joining", () => {
-    socket.emit("socket:connected");
   });
 });
